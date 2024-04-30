@@ -38,9 +38,19 @@ Game :: struct {
 	tick_rate:       TickKeeper,
 }
 
-Cell :: union {
+CellType :: union {
 	GolCell,
 	PokeCell,
+}
+
+Cell :: struct {
+	cell_type: CellType,
+	cell_info: GenericCell,
+}
+
+GenericCell :: struct {
+	neighbor_cells: [8]^CellType,
+	curr_pos:       [2]int, // ind_0 = x, ind_1 = y
 }
 
 check_tick :: proc(game: ^Game) -> (play: bool) {
@@ -71,6 +81,7 @@ initialize_window :: proc(game: ^Game) {
 	rl.InitWindow(window_size, window_size, game_type_string)
 }
 
+// tick_rate is in seconds
 game_init :: proc(
 	game_type: GameType = GameType.game_of_life,
 	cell_size: CellSize = CellSize.large,
@@ -78,7 +89,8 @@ game_init :: proc(
 	tick_rate: f64 = .5,
 ) -> (
 	game: Game,
-) {
+) 
+{
 	// flatten gamespace to better use memory. 
 	game_size := int(game_space_size) * int(game_space_size)
 	game_space := make([]Cell, game_size)
@@ -98,27 +110,69 @@ game_init :: proc(
 	return game
 }
 
+game_cell_surround_update :: proc(curr_cell: ^Cell, game_space: []Cell, game_size: int) {
+	ind := len(curr_cell.cell_info.neighbor_cells) - 1
+	for y in -1 ..= 1 {
+		for x in -1 ..= 1 {
+			if x == 0 && y == 0 {
+				continue
+			}
+			search_x := curr_cell.cell_info.curr_pos[0] + x
+			search_y := curr_cell.cell_info.curr_pos[1] + y
+			search_x, search_y = range_checker(search_x, search_y, game_size)
+			search_pos := (search_y * game_size) + search_x
+
+			curr_cell.cell_info.neighbor_cells[ind] = &game_space[search_pos].cell_type
+			ind -= 1
+		}
+	}
+}
+
 game_logic :: proc(game: ^Game) {
-	switch game.game_type {
-	case GameType.game_of_life:
-		gol_logic_loop(game)
-	case GameType.pokemon_auto_battler:
+	game_size := int(game.game_space_size)
+
+	for &cell in game.game_space {
+		game_cell_surround_update(&cell, game.game_space, game_size)
+		switch game.game_type {
+		case GameType.game_of_life:
+			curr_cell := &cell.cell_type.(GolCell)
+			curr_cell.alive = gol_cell_rules(cell.cell_info.neighbor_cells[:])
+		case GameType.pokemon_auto_battler:
+		}
 	}
 }
 
 game_draw :: proc(game: ^Game) {
+	game_size := int(game.game_space_size)
+	game_space := game.game_space
+	cell_size := int(game.cell_size)
+
 	rl.BeginDrawing()
 	defer rl.EndDrawing()
 	rl.ClearBackground(rl.WHITE)
 
-	switch game.game_type {
-	case GameType.game_of_life:
-		gol_draw_game(game)
-	case GameType.pokemon_auto_battler:
+	for y in 0 ..< game_size {
+		for x in 0 ..< game_size {
+			curr_pos := (y * game_size) + x
+			curr_cell := &game_space[curr_pos]
+			switch &cell in curr_cell.cell_type {
+			case GolCell:
+				if cell.alive {
+					rl.DrawRectangle(
+						i32(x * cell_size),
+						i32(y * cell_size),
+						i32(cell_size),
+						i32(cell_size),
+						rl.PINK,
+					)
+				}
+			case PokeCell:
+			}
+		}
 	}
 }
 
-range_checker :: proc(x, y: int, game_size: GameSpaceSize) -> (correct_x, correct_y: int) {
+range_checker :: proc(x, y, game_size: int) -> (correct_x, correct_y: int) {
 	game_size_int := int(game_size) - 1
 	if x < 0 {
 		correct_x = game_size_int
@@ -143,8 +197,17 @@ random_game_space :: proc(game: ^Game) {
 	switch game.game_type {
 	case GameType.pokemon_auto_battler:
 	case GameType.game_of_life:
-		gol_random_game(game)
+		gol_random_game(game.game_space, int(game.game_space_size))
 	}
+}
+
+default_game_space :: proc(game: ^Game) {
+	switch game.game_type {
+	case GameType.pokemon_auto_battler:
+	case GameType.game_of_life:
+		gol_default_game_space(game.game_space, int(game.game_space_size))
+	}
+	
 }
 
 main :: proc() {
@@ -152,7 +215,6 @@ main :: proc() {
 	curr_game := game_init()
 	initialize_window(&curr_game)
 	defer rl.CloseWindow()
-	gol_random_game(&curr_game)
 
 	for !rl.WindowShouldClose() {
 		if check_tick(&curr_game) {
