@@ -529,6 +529,7 @@ poke_game_rules :: proc(curr_pokemon: ^PokeCell, neighbors: []^CellType) -> (ret
 }
 
 poke_random_game :: proc(game_space: []Cell, game_size: int) {
+	poke_setup_effectiveness_chart()
 	for y in 0 ..< game_size {
 		for x in 0 ..< game_size {
 			curr_pos := (y * game_size) + x
