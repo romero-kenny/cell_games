@@ -89,8 +89,7 @@ game_init :: proc(
 	tick_rate: f64 = .5,
 ) -> (
 	game: Game,
-) 
-{
+) {
 	// flatten gamespace to better use memory. 
 	game_size := int(game_space_size) * int(game_space_size)
 	game_space := make([]Cell, game_size)
@@ -138,6 +137,8 @@ game_logic :: proc(game: ^Game) {
 			curr_cell := &cell.cell_type.(GolCell)
 			curr_cell.alive = gol_cell_rules(cell.cell_info.neighbor_cells[:])
 		case GameType.pokemon_auto_battler:
+			curr_cell := &cell.cell_type.(PokeCell)
+			curr_cell.primary_type = poke_game_rules(curr_cell, cell.cell_info.neighbor_cells[:])
 		}
 	}
 }
@@ -155,19 +156,24 @@ game_draw :: proc(game: ^Game) {
 		for x in 0 ..< game_size {
 			curr_pos := (y * game_size) + x
 			curr_cell := &game_space[curr_pos]
+			cell_color: rl.Color
 			switch &cell in curr_cell.cell_type {
 			case GolCell:
 				if cell.alive {
-					rl.DrawRectangle(
-						i32(x * cell_size),
-						i32(y * cell_size),
-						i32(cell_size),
-						i32(cell_size),
-						rl.PINK,
-					)
+					cell_color = rl.PINK
+				} else {
+					cell_color = rl.WHITE
 				}
 			case PokeCell:
+				cell_color = PokeColors[cell.primary_type]
 			}
+			rl.DrawRectangle(
+				i32(x * cell_size),
+				i32(y * cell_size),
+				i32(cell_size),
+				i32(cell_size),
+				cell_color,
+			)
 		}
 	}
 }
@@ -207,14 +213,17 @@ default_game_space :: proc(game: ^Game) {
 	case GameType.game_of_life:
 		gol_default_game_space(game.game_space, int(game.game_space_size))
 	}
-	
+
 }
 
 main :: proc() {
 
-	curr_game := game_init()
+	curr_game := game_init(
+		game_type = GameType.pokemon_auto_battler,
+	)
 	initialize_window(&curr_game)
 	defer rl.CloseWindow()
+	poke_random_game(curr_game.game_space, int(curr_game.game_space_size))
 
 	for !rl.WindowShouldClose() {
 		if check_tick(&curr_game) {
