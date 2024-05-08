@@ -1,5 +1,6 @@
-package cell_games
+package example_games
 
+import cg "../cell_game"
 import "core:math/rand"
 import rl "vendor:raylib"
 
@@ -7,28 +8,29 @@ import rl "vendor:raylib"
 @(private = "file")
 EffectivenessChart := make(map[PokeTypes][PokeTypes]f64)
 
-PokeColors := [PokeTypes]rl.Color{
-		.none = rl.BLACK,
-		.normal = rl.BEIGE,
-		.fire = rl.RED,
-		.water = rl.BLUE,
-		.electric = rl.YELLOW,
-		.grass = rl.GREEN,
-		.ice = rl.WHITE,
-		.fighting = rl.DARKBROWN,
-		.poison = rl.DARKPURPLE,
-		.ground = rl.BROWN,
-		.flying = rl.SKYBLUE,
-		.psychic = rl.PURPLE,
-		.bug = rl.LIME,
-		.rock = rl.LIGHTGRAY,
-		.ghost = rl.DARKBLUE,
-		.dragon = rl.ORANGE,
-		.dark = rl.GRAY,
-		.steel = rl.LIGHTGRAY,
-		.fairy = rl.PINK,
+PokeColors := [PokeTypes]rl.Color {
+	.none     = rl.BLACK,
+	.normal   = rl.BEIGE,
+	.fire     = rl.RED,
+	.water    = rl.BLUE,
+	.electric = rl.YELLOW,
+	.grass    = rl.GREEN,
+	.ice      = rl.WHITE,
+	.fighting = rl.DARKBROWN,
+	.poison   = rl.DARKPURPLE,
+	.ground   = rl.BROWN,
+	.flying   = rl.SKYBLUE,
+	.psychic  = rl.PURPLE,
+	.bug      = rl.LIME,
+	.rock     = rl.LIGHTGRAY,
+	.ghost    = rl.DARKBLUE,
+	.dragon   = rl.ORANGE,
+	.dark     = rl.GRAY,
+	.steel    = rl.LIGHTGRAY,
+	.fairy    = rl.PINK,
 }
 
+// Simple struct currently, as more features can be added for more complex rules
 PokeCell :: struct {
 	primary_type: PokeTypes,
 }
@@ -63,12 +65,13 @@ PokeFightOutcomes :: enum {
 }
 
 // Lord, forgive me....
-poke_setup_effectiveness_array :: proc(poke_type: PokeTypes) -> (ret_array: [PokeTypes]f64){
+// switch statement to allow compiler to notice if we miss something.
+poke_setup_effectiveness_array :: proc(poke_type: PokeTypes) -> (ret_array: [PokeTypes]f64) {
 	using PokeTypes
 	switch poke_type {
 	case none:
 		ret_array = [PokeTypes]f64 {
-			none     = 0,
+			none     = 69.69,
 			normal   = 0,
 			fire     = 0,
 			water    = 0,
@@ -508,9 +511,14 @@ poke_fight :: proc(attacker, defender: PokeTypes) -> (attacker_win: PokeFightOut
 	return attacker_win
 }
 
-poke_game_rules :: proc(curr_pokemon: ^PokeCell, neighbors: []^CellType) -> (ret_type: PokeTypes) {
+poke_game_rules :: proc(
+	curr_pokemon: ^PokeCell,
+	neighbors: []^cg.Cell(PokeCell),
+) -> (
+	ret_type: PokeTypes,
+) {
 	for &pokemon in neighbors {
-		defender_pokemon := &pokemon.(PokeCell)
+		defender_pokemon := &pokemon.cell_type_data
 		curr_fight_outcome := poke_fight(curr_pokemon.primary_type, defender_pokemon.primary_type)
 
 		switch curr_fight_outcome {
@@ -528,14 +536,17 @@ poke_game_rules :: proc(curr_pokemon: ^PokeCell, neighbors: []^CellType) -> (ret
 	return ret_type
 }
 
-poke_random_game :: proc(game_space: []Cell, game_size: int) {
+poke_random_game :: proc(game_space: []cg.Cell(PokeCell), game_size: int) {
 	poke_setup_effectiveness_chart()
-	for y in 0 ..< game_size {
-		for x in 0 ..< game_size {
-			curr_pos := (y * game_size) + x
-			game_space[curr_pos] = Cell {
+	assert(EffectivenessChart[PokeTypes.none][PokeTypes.none] == 69.69)
+
+	for row in 0 ..< game_size {
+		for column in 0 ..< game_size {
+			curr_pos := (row * game_size) + column
+
+			game_space[curr_pos] = cg.Cell(PokeCell) {
 				cell_type = PokeCell{primary_type = rand.choice_enum(PokeTypes)},
-				cell_info = GenericCell{curr_pos = [2]int{x, y}},
+				cell_info = cg.CellInfo(PokeCell){pos = Position{row = row, column = column}},
 			}
 		}
 	}
