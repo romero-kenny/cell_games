@@ -1,19 +1,8 @@
 package game
 
 import "./cell_game"
+import eg "./example_games"
 
 main :: proc() {
-	curr_game := game_init(
-		game_type = GameType.pokemon_auto_battler,
-	)
-	initialize_window(&curr_game)
-	defer rl.CloseWindow()
-	random_game_space(&curr_game, poke_random_game)
-
-	for !rl.WindowShouldClose() {
-		if check_tick(&curr_game) {
-			game_logic(&curr_game)
-		}
-		game_draw(&curr_game)
-	}
+	cell_game.game_init("game_of_life", eg.GolCell, eg.gol_game_module_setup())
 }

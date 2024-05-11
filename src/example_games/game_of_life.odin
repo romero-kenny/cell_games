@@ -48,8 +48,8 @@ gol_default_game_space :: proc(game_space: []Cell(GolCell), game_size: cg.Size) 
 	}
 }
 
-gol_game_module_setup :: proc() -> (gol_funcs: cg.GameModuleFunctions) {
-	gol_funcs = cg.GameModuleFunctions {
+gol_game_module_setup :: proc() -> (gol_funcs: cg.GameModuleFunctions(GolCell)) {
+	gol_funcs = cg.GameModuleFunctions(GolCell) {
 		random_game  = gol_random_game,
 		default_game = gol_default_game_space,
 		game_rules   = gol_cell_rules,

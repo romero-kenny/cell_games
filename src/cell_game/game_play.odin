@@ -28,9 +28,9 @@ CellInfo :: struct($SpecificCell: typeid) {
 }
 
 GameModuleFunctions :: struct($CellType: typeid) {
-	random_game:     proc(_: []Cell(CellType), _: Size),
-	default_game:    proc(_: []Cell(CellType), _: Size),
-	game_rules:      proc(_: []^Cell(CellType), _: ^Cell(CellType)),
+	random_game:      proc(_: []Cell(CellType), _: Size),
+	default_game:     proc(_: []Cell(CellType), _: Size),
+	game_rules:       proc(_: []^Cell(CellType), _: ^Cell(CellType)),
 	cell_type_deinit: Maybe(proc(_: ^Cell(CellType))),
 }
 
@@ -55,8 +55,8 @@ game_space_iterate :: proc(
 	game_space: []Cell(CellType),
 	game_size: Size,
 ) {
-	for row in game_size.y {
-		for col in game_size.x {
+	for row in 0 ..< game_size.y {
+		for col in 0 ..< game_size.x {
 			flattened_index := (row * game_size.y) + col
 			curr_cell := &game_space[flattened_index]
 			neighbor_cells := &curr_cell.cell_info.neighbors
@@ -68,8 +68,8 @@ game_space_iterate :: proc(
 
 game_init :: proc(
 	game_name: string,
-	game_type: $CellType,
-	game_funcs: GameModuleFunctions(CellType),
+	game_type: typeid,
+	game_funcs: GameModuleFunctions($CellType),
 	random: bool = true,
 	game_size: Size = Size{100, 100},
 	allocator: mem.Allocator = context.allocator,
@@ -92,8 +92,8 @@ game_init :: proc(
 
 	flattened_game_space := game_size.x * game_size.y
 	new_game.game_space = make([]Cell(type_of(game_type), flattened_game_space))
-
-	for char, ind in transmute(u8)game_name {
+	u8_game_name := transmute([]u8)game_name
+	for char, ind in u8_game_name  {
 		if ind >= (len(new_game.game_name) - 2) {
 			break
 		}

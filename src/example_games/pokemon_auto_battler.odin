@@ -511,38 +511,31 @@ poke_fight :: proc(attacker, defender: PokeTypes) -> (attacker_win: PokeFightOut
 	return attacker_win
 }
 
-poke_game_rules :: proc(
-	curr_pokemon: ^PokeCell,
-	neighbors: []^cg.Cell(PokeCell),
-) -> (
-	ret_type: PokeTypes,
-) {
+poke_game_rules :: proc(curr_pokemon: ^cg.Cell(PokeCell), neighbors: []^cg.Cell(PokeCell)) {
 	for &pokemon in neighbors {
-		defender_pokemon := &pokemon.cell_type_data
-		curr_fight_outcome := poke_fight(curr_pokemon.primary_type, defender_pokemon.primary_type)
+		defender_pokemon := &pokemon.cell_data
+		curr_fight_outcome := poke_fight(
+			curr_pokemon.cell_data.primary_type,
+			defender_pokemon.primary_type,
+		)
 
+		// can add more outcome logic later to complicate the gamespace
 		switch curr_fight_outcome {
 		case .lost:
-			ret_type = defender_pokemon.primary_type
-			break
 		case .draw:
-			ret_type = curr_pokemon.primary_type
 		case .win:
-			ret_type = curr_pokemon.primary_type
-			defender_pokemon.primary_type = curr_pokemon.primary_type
+			defender_pokemon.primary_type = curr_pokemon.cell_data.primary_type
 		}
 	}
-
-	return ret_type
 }
 
-poke_random_game :: proc(game_space: []cg.Cell(PokeCell), game_size: int) {
+poke_random_game :: proc(game_space: []cg.Cell(PokeCell), game_size: cg.Size) {
 	poke_setup_effectiveness_chart()
 	assert(EffectivenessChart[PokeTypes.none][PokeTypes.none] == 69.69)
 
-	for row in 0 ..< game_size {
-		for column in 0 ..< game_size {
-			curr_pos := (row * game_size) + column
+	for row in 0 ..< game_size.y {
+		for column in 0 ..< game_size.x {
+			curr_pos := (row * game_size.y) + column
 
 			game_space[curr_pos] = cg.Cell(PokeCell) {
 				cell_type = PokeCell{primary_type = rand.choice_enum(PokeTypes)},
