@@ -508,28 +508,33 @@ poke_fight :: proc(attacker, defender: PokeTypes) -> (attacker_win: PokeFightOut
 	return attacker_win
 }
 
-poke_game_rules :: proc(curr_pokemon: ^PokeCell, neighbors: []^CellType) {
+poke_game_rules :: proc(curr_pokemon: ^CellType, neighbors: []^CellType) {
+	// have to confirm type before being able to use
+	attck_poke := &curr_pokemon.(PokeCell)
+
 	for &pokemon in neighbors {
 		defender_pokemon := &pokemon.(PokeCell)
-		curr_fight_outcome := poke_fight(curr_pokemon.primary_type, defender_pokemon.primary_type)
+		curr_fight_outcome := poke_fight(attck_poke.primary_type, defender_pokemon.primary_type)
 
 		switch curr_fight_outcome {
 		case .lost:
 		case .draw:
 		case .win:
-			defender_pokemon.primary_type = curr_pokemon.primary_type
+			defender_pokemon.primary_type = attck_poke.primary_type
 		}
 	}
 }
 
 poke_random_game :: proc(game_space: []Cell, game_size: Size) {
 	poke_setup_effectiveness_chart()
-	for y in 0 ..< game_size.y {
-		for x in 0 ..< game_size.x {
-			curr_pos := (y * game_size.y) + x
+	for row in 0 ..< game_size.y {
+		for column in 0 ..< game_size.x {
+			curr_pos := (row * game_size.y) + column
 			game_space[curr_pos] = Cell {
 				cell_type = PokeCell{primary_type = rand.choice_enum(PokeTypes)},
-				cell_info = GenericCell{curr_pos = [2]int{x, y}},
+				cell_info = CellInfo{
+					curr_pos = Position{row = row, column = column},
+				},
 			}
 		}
 	}
