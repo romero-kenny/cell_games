@@ -9,19 +9,19 @@ GameType :: enum {
 	pokemon_auto_battler,
 }
 
-CellSize :: enum {
-	small  = 2,
-	medium = 4,
-	large  = 8,
-	xlarge = 16,
+CellType :: union {
+	GolCell,
+	PokeCell,
 }
 
-GameSpaceSize :: enum {
-	small = 25,
-	medium = 50,
-	large = 100,
-	xlarge = 200,
-	infinite,
+Size :: struct {
+	y: int,
+	x: int,
+}
+
+Position :: struct {
+	row: int,
+	column: int,
 }
 
 TickKeeper :: struct {
@@ -31,26 +31,21 @@ TickKeeper :: struct {
 }
 
 Game :: struct {
-	game_type:       GameType,
-	game_space:      []Cell,
-	cell_size:       CellSize,
-	game_space_size: GameSpaceSize,
-	tick_rate:       TickKeeper,
+	game_type:  GameType,
+	game_space: []Cell,
+	game_size:  Size,
+	tick_rate:  TickKeeper,
 }
 
-CellType :: union {
-	GolCell,
-	PokeCell,
-}
 
 Cell :: struct {
 	cell_type: CellType,
-	cell_info: GenericCell,
+	cell_info: CellInfo,
 }
 
-GenericCell :: struct {
+CellInfo :: struct {
 	neighbor_cells: [8]^CellType,
-	curr_pos:       [2]int, // ind_0 = x, ind_1 = y
+	curr_pos:	Position,
 }
 
 check_tick :: proc(game: ^Game) -> (play: bool) {
@@ -68,14 +63,14 @@ check_tick :: proc(game: ^Game) -> (play: bool) {
 }
 
 initialize_window :: proc(game: ^Game) {
-	window_size := i32(game.game_space_size) * i32(game.cell_size)
+	window_size 
 	game_type_string: cstring
 
 	switch game.game_type {
 	case GameType.game_of_life:
-		game_type_string := "Game of Life"
+		game_type_string = "Game of Life"
 	case GameType.pokemon_auto_battler:
-		game_type_string := "Pokemon Auto Battler"
+		game_type_string = "Pokemon Auto Battler"
 	}
 
 	rl.InitWindow(window_size, window_size, game_type_string)
@@ -84,25 +79,23 @@ initialize_window :: proc(game: ^Game) {
 // tick_rate is in seconds
 game_init :: proc(
 	game_type: GameType = GameType.game_of_life,
-	cell_size: CellSize = CellSize.large,
-	game_space_size: GameSpaceSize = GameSpaceSize.medium,
+	game_size: Size = Size{20, 20},
 	tick_rate: f64 = .5,
 ) -> (
 	game: Game,
 ) {
 	// flatten gamespace to better use memory. 
-	game_size := int(game_space_size) * int(game_space_size)
-	game_space := make([]Cell, game_size)
+	flattened_size := game_size.y * game_size.x
+	game_space := make([]Cell, flattened_size)
 	tick_keeper := TickKeeper {
 		curr_tick_rate = tick_rate,
 	}
 
 	game = Game {
-		game_type       = game_type,
-		cell_size       = cell_size,
-		game_space      = game_space,
-		game_space_size = game_space_size,
-		tick_rate       = tick_keeper,
+		game_type  = game_type,
+		game_space = game_space,
+		game_size  = game_size,
+		tick_rate  = tick_keeper,
 	}
 	time.stopwatch_start(&game.tick_rate.stopwatch)
 
@@ -202,6 +195,7 @@ range_checker :: proc(x, y, game_size: int) -> (correct_x, correct_y: int) {
 random_game_space :: proc(game: ^Game) {
 	switch game.game_type {
 	case GameType.pokemon_auto_battler:
+		poke_random_game(game.game_space, game.game_size)
 	case GameType.game_of_life:
 		gol_random_game(game.game_space, int(game.game_space_size))
 	}
@@ -218,12 +212,9 @@ default_game_space :: proc(game: ^Game) {
 
 main :: proc() {
 
-	curr_game := game_init(
-		game_type = GameType.pokemon_auto_battler,
-	)
+	curr_game := game_init(game_type = GameType.pokemon_auto_battler)
 	initialize_window(&curr_game)
 	defer rl.CloseWindow()
-	poke_random_game(curr_game.game_space, int(curr_game.game_space_size))
 
 	for !rl.WindowShouldClose() {
 		if check_tick(&curr_game) {

@@ -7,7 +7,7 @@ GolCell :: struct {
 	alive:     bool,
 }
 
-gol_cell_rules :: proc(neighbor_cells: []^CellType) -> (alive: bool) {
+gol_cell_rules :: proc(curr_cell: ^CellType, neighbor_cells: []^CellType) {
 	total_alive : int
 	for &cell in neighbor_cells {
 		gol_cell := &cell.(GolCell)
@@ -15,38 +15,37 @@ gol_cell_rules :: proc(neighbor_cells: []^CellType) -> (alive: bool) {
 			total_alive += 1
 		}
 	}
+	gol_cell := &curr_cell.(GolCell)
 	if !(total_alive < 2 || total_alive > 3) {
-		 alive = true
-	}
+		gol_cell.alive = true
+	} else {gol_cell.alive = false}
 
-	return alive
 }
 
-gol_random_game :: proc(game_space: []Cell, game_size: int) {
-	for y in 0 ..< game_size {
-		for x in 0 ..< game_size {
-			curr_pos := (y * game_size) + x
+gol_random_game :: proc(game_space: []Cell, game_size: Size) {
+	for row in 0 ..< game_size.y {
+		for column in 0 ..< game_size.x {
+			curr_pos := (row * game_size.y) + column
 			game_space[curr_pos] = Cell {
 				cell_type = GolCell {
-					alive = rand.int_max(2) != 0
+					alive = rand.choice([]bool{true, false})
 				},
-				cell_info = GenericCell {
-					curr_pos = [2]int{x, y}
+				cell_info = CellInfo {
+					curr_pos = Position{row = row, column = column}
 				}
 			}
 		}
 	}
 }
 
-gol_default_game_space :: proc(game_space: []Cell, game_size: int) {
-	for y in 0 ..< game_size {
-		for x in 0 ..< game_size {
-			curr_pos := (y * game_size) + x
+gol_default_game_space :: proc(game_space: []Cell, game_size: Size) {
+	for row in 0 ..< game_size.y {
+		for column in 0 ..< game_size.x {
+			curr_pos := (row * game_size.y) + column
 			game_space[curr_pos] = Cell {
-				cell_type = GolCell {
-				},
-				cell_info = GenericCell {
-					curr_pos = [2]int{x, y}
+				cell_type = GolCell {},
+				cell_info = CellInfo {
+					curr_pos = Position{row = row, column = column}
 				}
 			}
 		}
