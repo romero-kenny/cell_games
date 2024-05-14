@@ -11,8 +11,7 @@ WindowInfo :: struct {
 }
 
 // inits window and sets min window size
-initialize_window :: proc(game: ^cg.Game) {
-	window_size := i32(game.game_size.y * 16)
+initialize_window :: proc(game: ^cg.Game, window: ^WindowInfo) {
 	game_type_string: cstring
 
 	switch game.game_type {
@@ -22,28 +21,40 @@ initialize_window :: proc(game: ^cg.Game) {
 		game_type_string := "Pokemon Auto Battler"
 	}
 
-	rl.InitWindow(window_size, window_size, game_type_string)
-	rl.SetWindowMinSize(window_size, window_size)
+	rl.InitWindow(i32(window.dimensions.x / window.game_render_size.x * window.game_render_size.x), i32(window.dimensions.y / window.game_render_size.y * window.game_render_size.y), game_type_string)
+	rl.SetWindowMinSize(i32(window.dimensions.x / window.game_render_size.x * window.game_render_size.x), i32(window.dimensions.y / window.game_render_size.y * window.game_render_size.y))
+}
+
+valid_window_size :: proc(window: ^WindowInfo) {
+	// checking if window dimensions is positive
+	if window.dimensions.y < window.game_render_size.y {
+		window.dimensions.y = window.game_render_size.y
+	}
+	if window.dimensions.x < window.game_render_size.x {
+		window.dimensions.x = window.game_render_size.x 
+	}
+	
+	// checks if smaller than the min
+	if window.dimensions.y < window.game_render_size.y {
+		window.dimensions.y = window.game_render_size.y
+	}
+	if window.dimensions.x < window.game_render_size.x {
+		window.dimensions.x = window.game_render_size.x
+	}
 }
 
 // encapsulate all actions needed to achieve a window resize
 window_resize_handle :: proc(window: ^WindowInfo) {
 	// capturing mouse movement and adding it to window dimensions
-	if rl.IsMouseButtonDown(rl.MouseButton.LEFT) && mouse_on_border(window) {
+	if rl.IsMouseButtonDown(rl.MouseButton.LEFT) {
 		mouse_movement := rl.GetMouseDelta()
 		mouse_move_in_size := cg.Size {
-			y = auto_cast mouse_movement[1],
-			x = auto_cast mouse_movement[0],
+			y = cast(int) mouse_movement[1],
+			x = cast(int) mouse_movement[0],
 		}
 		window.dimensions.y += mouse_move_in_size.y
 		window.dimensions.x += mouse_move_in_size.x
-		if window.dimensions.y < window.game_render_size.y {
-			window.dimensions.y = window.game_render_size.y
-		}
-		if window.dimensions.x < window.game_render_size.x {
-			window.dimensions.x = window.game_render_size.x
-			fmt.println(window)
-		}
+		valid_window_size(window)
 		rl.SetWindowSize(i32(window.dimensions.x), i32(window.dimensions.y))
 	}
 }
@@ -66,35 +77,26 @@ mouse_on_border :: proc(window: ^WindowInfo) -> (is_on_border: bool) {
 
 init_window_info :: proc(
 	game: ^cg.Game,
-	window_size: cg.Size = cg.Size{600, 480},
+	window_size: cg.Size = cg.Size{800, 800},
 ) -> (
 	window_info: WindowInfo,
 ) {
 	window_info = WindowInfo {
 		dimensions = window_size,
-		game_render_size = cg.Size {
-			y = (window_size.y / game.game_size.y) * game.game_size.y,
-			x = (window_size.x / game.game_size.x) * game.game_size.x,
-		},
-	}
-
-	if window_info.game_render_size.y < 1 {
-		window_info.game_render_size.y = 1 * game.game_size.y
-	}
-	if window_info.game_render_size.x < 1 {
-		window_info.game_render_size.x = 1 * game.game_size.x
+		game_render_size = cg.Size{y = game.game_size.y, x = game.game_size.x},
 	}
 	return window_info
 }
 
+
 game_draw :: proc(game: ^cg.Game, window: ^WindowInfo) {
+	window_resize_handle(window)
 	game_size := game.game_size
 	game_space := game.game_space
 	cell_size := cg.Size {
-		y = window.dimensions.y / game.game_size.y,
-		x = window.dimensions.x / game.game_size.x,
+		y = window.dimensions.y / window.game_render_size.y,
+		x = window.dimensions.x / window.game_render_size.x,
 	}
-	window_resize_handle(window)
 
 	rl.BeginDrawing()
 	defer rl.EndDrawing()
@@ -116,8 +118,8 @@ game_draw :: proc(game: ^cg.Game, window: ^WindowInfo) {
 				cell_color = cg.PokeColors[cell.primary_type]
 			}
 			rl.DrawRectangle(
-				i32(row * cell_size.y),
 				i32(column * cell_size.x),
+				i32(row * cell_size.y),
 				i32(cell_size.y),
 				i32(cell_size.x),
 				cell_color,
