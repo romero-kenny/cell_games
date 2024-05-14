@@ -6,11 +6,20 @@ import "core:math"
 import rl "vendor:raylib"
 
 WindowInfo :: struct {
-	dimensions:       cg.Size,
-	game_render_size: cg.Size, // is the total amount of pixels it takes to render the game space
+	dimensions:           cg.Size,
+	min_game_render_size: cg.Size, // is the total amount of pixels it takes to render the game space
+	cell_size:            cg.Size, // able to just compute change with window resize
+	attached_game:        ^cg.Game,
 }
 
-// inits window and sets min window size
+// Used as multiplier for initializing minimal size to render game space
+GameSizeMultuplier :: enum {
+	fit_game_size = 1,
+	small         = 4,
+	medium        = 8,
+	large         = 16,
+}
+
 initialize_window :: proc(game: ^cg.Game, window: ^WindowInfo) {
 	game_type_string: cstring
 
@@ -20,41 +29,51 @@ initialize_window :: proc(game: ^cg.Game, window: ^WindowInfo) {
 	case cg.GameType.pokemon_auto_battler:
 		game_type_string := "Pokemon Auto Battler"
 	}
-
-	rl.InitWindow(i32(window.dimensions.x / window.game_render_size.x * window.game_render_size.x), i32(window.dimensions.y / window.game_render_size.y * window.game_render_size.y), game_type_string)
-	rl.SetWindowMinSize(i32(window.dimensions.x / window.game_render_size.x * window.game_render_size.x), i32(window.dimensions.y / window.game_render_size.y * window.game_render_size.y))
+	valid_window_size(window)
+	rl.InitWindow(i32(window.dimensions.x), i32(window.dimensions.y), game_type_string)
 }
 
 valid_window_size :: proc(window: ^WindowInfo) {
 	// checking if window dimensions is positive
-	if window.dimensions.y < window.game_render_size.y {
-		window.dimensions.y = window.game_render_size.y
+	if window.dimensions.y < window.min_game_render_size.y {
+		window.dimensions.y = window.min_game_render_size.y
 	}
-	if window.dimensions.x < window.game_render_size.x {
-		window.dimensions.x = window.game_render_size.x 
+	if window.dimensions.x < window.min_game_render_size.x {
+		window.dimensions.x = window.min_game_render_size.x
 	}
-	
+
 	// checks if smaller than the min
-	if window.dimensions.y < window.game_render_size.y {
-		window.dimensions.y = window.game_render_size.y
+	if window.dimensions.y < window.min_game_render_size.y {
+		window.dimensions.y = window.min_game_render_size.y
 	}
-	if window.dimensions.x < window.game_render_size.x {
-		window.dimensions.x = window.game_render_size.x
+	if window.dimensions.x < window.min_game_render_size.x {
+		window.dimensions.x = window.min_game_render_size.x
 	}
+
+	cell_size_ratio_y := f64(window.attached_game.game_size.y) / f64(window.attached_game.game_size.x)
+	cell_size_ratio_x := f64(window.attached_game.game_size.x) / f64(window.attached_game.game_size.y)
+	window.dimensions.x = cast(int)(f64(window.dimensions.x) * cell_size_ratio_x)
+	window.dimensions.y = cast(int)(f64(window.dimensions.y) * cell_size_ratio_y)
+
 }
 
 // encapsulate all actions needed to achieve a window resize
 window_resize_handle :: proc(window: ^WindowInfo) {
 	// capturing mouse movement and adding it to window dimensions
-	if rl.IsMouseButtonDown(rl.MouseButton.LEFT) {
+	if rl.IsMouseButtonDown(rl.MouseButton.LEFT) && mouse_on_border(window) {
 		mouse_movement := rl.GetMouseDelta()
 		mouse_move_in_size := cg.Size {
-			y = cast(int) mouse_movement[1],
-			x = cast(int) mouse_movement[0],
+			y = cast(int)mouse_movement[1],
+			x = cast(int)mouse_movement[0],
 		}
 		window.dimensions.y += mouse_move_in_size.y
 		window.dimensions.x += mouse_move_in_size.x
 		valid_window_size(window)
+
+		window.cell_size = cg.Size {
+			y = window.dimensions.y / window.attached_game.game_size.y,
+			x = window.dimensions.x / window.attached_game.game_size.x,
+		}
 		rl.SetWindowSize(i32(window.dimensions.x), i32(window.dimensions.y))
 	}
 }
@@ -78,13 +97,24 @@ mouse_on_border :: proc(window: ^WindowInfo) -> (is_on_border: bool) {
 init_window_info :: proc(
 	game: ^cg.Game,
 	window_size: cg.Size = cg.Size{800, 800},
+	min_multiplier: GameSizeMultuplier = GameSizeMultuplier.medium,
 ) -> (
 	window_info: WindowInfo,
 ) {
+	cell_size := cg.Size {
+		y = window_size.y / game.game_size.y,
+		x = window_size.x / game.game_size.x,
+	}
 	window_info = WindowInfo {
 		dimensions = window_size,
-		game_render_size = cg.Size{y = game.game_size.y, x = game.game_size.x},
+		min_game_render_size = cg.Size {
+			y = game.game_size.y * int(min_multiplier),
+			x = game.game_size.x * int(min_multiplier),
+		},
+		cell_size = cell_size,
+		attached_game = game,
 	}
+
 	return window_info
 }
 
@@ -93,10 +123,6 @@ game_draw :: proc(game: ^cg.Game, window: ^WindowInfo) {
 	window_resize_handle(window)
 	game_size := game.game_size
 	game_space := game.game_space
-	cell_size := cg.Size {
-		y = window.dimensions.y / window.game_render_size.y,
-		x = window.dimensions.x / window.game_render_size.x,
-	}
 
 	rl.BeginDrawing()
 	defer rl.EndDrawing()
@@ -118,10 +144,10 @@ game_draw :: proc(game: ^cg.Game, window: ^WindowInfo) {
 				cell_color = cg.PokeColors[cell.primary_type]
 			}
 			rl.DrawRectangle(
-				i32(column * cell_size.x),
-				i32(row * cell_size.y),
-				i32(cell_size.y),
-				i32(cell_size.x),
+				i32(column * window.cell_size.x),
+				i32(row * window.cell_size.y),
+				i32(window.cell_size.y),
+				i32(window.cell_size.x),
 				cell_color,
 			)
 		}
