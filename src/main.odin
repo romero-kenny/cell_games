@@ -2,6 +2,7 @@ package main
 import rl "vendor:raylib"
 import cg "./cell_games"
 import gr "./game_rendering"
+import gc "./game_control"
 
 main :: proc() {
 	curr_game := cg.game_init(game_type = cg.GameType.pokemon_auto_battler)
@@ -13,5 +14,6 @@ main :: proc() {
 	for !rl.WindowShouldClose() {
 		cg.game_play(&curr_game)
 		gr.game_draw(&curr_game, &window_info)
+		gc.check_controls(&curr_game)
 	}
 }

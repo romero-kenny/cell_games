@@ -50,8 +50,10 @@ valid_window_size :: proc(window: ^WindowInfo) {
 		window.dimensions.x = window.min_game_render_size.x
 	}
 
-	cell_size_ratio_y := f64(window.attached_game.game_size.y) / f64(window.attached_game.game_size.x)
-	cell_size_ratio_x := f64(window.attached_game.game_size.x) / f64(window.attached_game.game_size.y)
+	cell_size_ratio_y :=
+		f64(window.attached_game.game_size.y) / f64(window.attached_game.game_size.x)
+	cell_size_ratio_x :=
+		f64(window.attached_game.game_size.x) / f64(window.attached_game.game_size.y)
 	window.dimensions.x = cast(int)(f64(window.dimensions.x) * cell_size_ratio_x)
 	window.dimensions.y = cast(int)(f64(window.dimensions.y) * cell_size_ratio_y)
 
@@ -118,20 +120,11 @@ init_window_info :: proc(
 	return window_info
 }
 
-
-game_draw :: proc(game: ^cg.Game, window: ^WindowInfo) {
-	window_resize_handle(window)
-	game_size := game.game_size
-	game_space := game.game_space
-
-	rl.BeginDrawing()
-	defer rl.EndDrawing()
-	rl.ClearBackground(rl.WHITE)
-
-	for row in 0 ..< game_size.y {
-		for column in 0 ..< game_size.x {
+draw_game_space :: proc(game: ^cg.Game, window: ^WindowInfo) {
+	for row in 0 ..< game.game_size.y {
+		for column in 0 ..< game.game_size.x {
 			curr_pos := (row * game.game_size.y) + column
-			curr_cell := &game_space[curr_pos]
+			curr_cell := &game.game_space[curr_pos]
 			cell_color: rl.Color
 			switch &cell in curr_cell.cell_type {
 			case cg.GolCell:
@@ -152,4 +145,19 @@ game_draw :: proc(game: ^cg.Game, window: ^WindowInfo) {
 			)
 		}
 	}
+}
+
+// method to render is game space takes up all the window, gui then is drawn
+// on top of the game space.
+game_draw :: proc(game: ^cg.Game, window: ^WindowInfo) {
+	window_resize_handle(window)
+	game_size := game.game_size
+	game_space := game.game_space
+
+	rl.BeginDrawing()
+	defer rl.EndDrawing()
+	rl.ClearBackground(rl.WHITE)
+
+	draw_game_space(game, window)
+
 }
